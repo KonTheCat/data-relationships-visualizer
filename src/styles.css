@@ -1,0 +1,209 @@
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: #f4f4f4;
+}
+
+h1,
+h2,
+h3 {
+  color: #333;
+}
+
+.container {
+  width: 90%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.header {
+  background: #35424a;
+  color: #ffffff;
+  padding: 10px 0;
+  text-align: center;
+}
+
+.data-asset-list {
+  list-style: none;
+  padding: 0;
+}
+
+.data-asset-item {
+  background: #ffffff;
+  margin: 10px 0;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: box-shadow 0.3s ease;
+}
+
+.data-asset-item:hover {
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.data-asset-item.selected {
+  border-color: #4285f4;
+  box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.2);
+}
+
+.asset-relationships {
+  margin-top: 10px;
+  font-size: 0.9em;
+}
+
+.asset-relationships ul {
+  margin-top: 5px;
+  padding-left: 20px;
+}
+
+.add-data-asset-form {
+  background: #ffffff;
+  padding: 20px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  margin: 20px 0;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+.form-control {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+select.form-control {
+  background-color: white;
+}
+
+.form-text {
+  display: block;
+  margin-top: 5px;
+  font-size: 0.85em;
+  color: #666;
+}
+
+.button {
+  background: #35424a;
+  color: #ffffff;
+  border: none;
+  padding: 10px 15px;
+  cursor: pointer;
+  border-radius: 5px;
+}
+
+.button:hover {
+  background: #2c3e50;
+}
+
+.relationship-visualizer {
+  margin: 20px 0;
+  padding: 20px;
+  background: #ffffff;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+}
+
+.visualization-container {
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid #eee;
+  border-radius: 4px;
+  background-color: #fafafa;
+}
+
+.data-relationship-graph {
+  display: block;
+  margin: 0 auto;
+}
+
+.data-relationship-graph .nodes circle {
+  cursor: pointer;
+  transition: fill 0.3s ease;
+}
+
+.data-relationship-graph .nodes circle:hover {
+  fill: #ea4335;
+}
+
+.data-relationship-graph .links line {
+  stroke-opacity: 1; /* Full opacity for better visibility */
+  stroke: #555; /* Darker color for better visibility */
+  stroke-width: 2.5px;
+  stroke-linecap: round;
+  transition: all 0.2s;
+}
+
+.data-relationship-graph .links line:hover {
+  stroke-width: 5px;
+  stroke: #3367d6;
+}
+
+.data-relationship-graph .nodes text {
+  font-family: Arial, sans-serif;
+  font-weight: bold;
+  pointer-events: none;
+}
+
+/* Add a tooltip style */
+.d3-tooltip {
+  position: absolute;
+  text-align: center;
+  padding: 8px;
+  font: 12px sans-serif;
+  background: #333;
+  color: #fff;
+  border: 0;
+  border-radius: 4px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.relationship-arrow {
+  display: inline-block;
+  margin-right: 5px;
+  font-weight: bold;
+  color: #3367d6;
+}
+
+.relationship-legend {
+  margin-bottom: 15px;
+  padding: 10px;
+  background-color: #f8f8f8;
+  border-left: 3px solid #3367d6;
+  font-size: 14px;
+}
+
+.arrow-description {
+  margin-left: 5px;
+  font-style: italic;
+}
+
+.main-content {
+  display: grid;
+  grid-gap: 20px;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 768px) {
+  .main-content {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .relationship-visualizer {
+    grid-column: 1 / -1;
+  }
+}
