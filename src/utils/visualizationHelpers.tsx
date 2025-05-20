@@ -50,11 +50,13 @@ interface D3Link extends d3.SimulationLinkDatum<D3Node> {
   target: D3Node | string | number;
 }
 
-// New function to create a D3 force-directed graph
+// Modified function with filtering capability for both node selection and search
 export const createD3ForceGraph = (
   svgElement: SVGSVGElement,
   dataAssets: DataAsset[],
-  dimensions: { width: number; height: number }
+  dimensions: { width: number; height: number },
+  selectedNodeId?: string | null,
+  searchMatches?: string[] | null
 ) => {
   // Clear previous visualization
   d3.select(svgElement).selectAll("*").remove();
@@ -259,7 +261,8 @@ export const createD3ForceGraph = (
     .attr("r", (d: D3Node) => d.radius) // Use dynamic radius
     .attr("fill", "#4285f4")
     .attr("stroke", "#3367d6")
-    .attr("stroke-width", 2);
+    .attr("stroke-width", 2)
+    .style("cursor", "pointer");
 
   // Create better tooltips for nodes that include relationships
   circles.append("title").text((d: D3Node) => {
@@ -299,6 +302,174 @@ export const createD3ForceGraph = (
     .attr("fill", "white")
     .attr("font-size", "12px")
     .style("pointer-events", "none");
+
+  // Find all connected nodes (direct and indirect relationships) from a given node
+  const findConnectedNodes = (nodeId: string): Set<string> => {
+    const connected = new Set<string>();
+    connected.add(nodeId);
+
+    const findRelatedNodes = (
+      id: string,
+      direction: "outgoing" | "incoming"
+    ) => {
+      const relatedLinks = links.filter((link) => {
+        if (direction === "outgoing") {
+          // Find links where this node is the source
+          return (
+            (typeof link.source === "object" && link.source.id === id) ||
+            (typeof link.source === "string" && link.source === id)
+          );
+        } else {
+          // Find links where this node is the target
+          return (
+            (typeof link.target === "object" && link.target.id === id) ||
+            (typeof link.target === "string" && link.target === id)
+          );
+        }
+      });
+
+      relatedLinks.forEach((link) => {
+        const relatedId =
+          typeof link[direction === "outgoing" ? "target" : "source"] ===
+          "object"
+            ? (link[direction === "outgoing" ? "target" : "source"] as D3Node)
+                .id
+            : (link[direction === "outgoing" ? "target" : "source"] as string);
+
+        if (!connected.has(relatedId)) {
+          connected.add(relatedId);
+          // Recursively find connected nodes in both directions
+          findRelatedNodes(relatedId, "outgoing");
+          findRelatedNodes(relatedId, "incoming");
+        }
+      });
+    };
+
+    // Start searching in both directions
+    findRelatedNodes(nodeId, "outgoing");
+    findRelatedNodes(nodeId, "incoming");
+
+    return connected;
+  };
+
+  // Find all connected nodes from a single node (uses the multiple node function)
+  const findConnectedNodesFromMultiple = (nodeIds: string[]): Set<string> => {
+    const connected = new Set<string>();
+
+    nodeIds.forEach((nodeId) => {
+      connected.add(nodeId);
+
+      const findRelatedNodes = (
+        id: string,
+        direction: "outgoing" | "incoming"
+      ) => {
+        const relatedLinks = links.filter((link) => {
+          if (direction === "outgoing") {
+            // Find links where this node is the source
+            return (
+              (typeof link.source === "object" && link.source.id === id) ||
+              (typeof link.source === "string" && link.source === id)
+            );
+          } else {
+            // Find links where this node is the target
+            return (
+              (typeof link.target === "object" && link.target.id === id) ||
+              (typeof link.target === "string" && link.target === id)
+            );
+          }
+        });
+
+        relatedLinks.forEach((link) => {
+          const relatedId =
+            typeof link[direction === "outgoing" ? "target" : "source"] ===
+            "object"
+              ? (link[direction === "outgoing" ? "target" : "source"] as D3Node)
+                  .id
+              : (link[
+                  direction === "outgoing" ? "target" : "source"
+                ] as string);
+
+          if (!connected.has(relatedId)) {
+            connected.add(relatedId);
+            // Recursively find connected nodes in both directions
+            findRelatedNodes(relatedId, "outgoing");
+            findRelatedNodes(relatedId, "incoming");
+          }
+        });
+      };
+
+      // Start searching in both directions
+      findRelatedNodes(nodeId, "outgoing");
+      findRelatedNodes(nodeId, "incoming");
+    });
+
+    return connected;
+  };
+
+  // Apply filtering if a node is selected
+  if (selectedNodeId) {
+    const connectedNodes = findConnectedNodes(selectedNodeId);
+
+    // Update node visuals based on connection status
+    nodeGroup.style("opacity", (d) => (connectedNodes.has(d.id) ? 1 : 0.2));
+    circles.attr("fill", (d) =>
+      d.id === selectedNodeId ? "#ea4335" : "#4285f4"
+    );
+
+    // Update link visuals
+    link.style("opacity", (d) => {
+      const sourceId = typeof d.source === "object" ? d.source.id : d.source;
+      const targetId = typeof d.target === "object" ? d.target.id : d.target;
+      return connectedNodes.has(sourceId as string) &&
+        connectedNodes.has(targetId as string)
+        ? 1
+        : 0.1;
+    });
+  } else if (searchMatches && searchMatches.length > 0) {
+    // If search is active, show matching nodes and their connections
+    const connectedNodes = findConnectedNodesFromMultiple(searchMatches);
+
+    // Update node visuals based on search matches and connections
+    nodeGroup.style("opacity", (d) => (connectedNodes.has(d.id) ? 1 : 0.2));
+    circles.attr("fill", (d) =>
+      searchMatches.includes(d.id) ? "#ea4335" : "#4285f4"
+    );
+
+    // Highlight text for search matches
+    labels
+      .attr("fill", (d) => (searchMatches.includes(d.id) ? "#ffff00" : "white"))
+      .attr("font-weight", (d) =>
+        searchMatches.includes(d.id) ? "bold" : "normal"
+      );
+
+    // Update link visuals
+    link.style("opacity", (d) => {
+      const sourceId = typeof d.source === "object" ? d.source.id : d.source;
+      const targetId = typeof d.target === "object" ? d.target.id : d.target;
+      return connectedNodes.has(sourceId as string) &&
+        connectedNodes.has(targetId as string)
+        ? 1
+        : 0.1;
+    });
+  }
+
+  // Add click handlers for nodes
+  circles.on("click", function (event, d) {
+    // Dispatch custom event with node id for filtering
+    const clickEvent = new CustomEvent("nodeClick", {
+      detail: { nodeId: d.id },
+    });
+    svgElement.dispatchEvent(clickEvent);
+
+    // Prevent event from propagating
+    event.stopPropagation();
+  });
+
+  // Add background click handler to reset filtering
+  svg.on("click", function () {
+    const resetEvent = new CustomEvent("resetFiltering");
+    svgElement.dispatchEvent(resetEvent);
+  });
 
   // Helper function to calculate path with proper arrow placement
   function calculatePath(source: any, target: any) {
