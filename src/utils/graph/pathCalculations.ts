@@ -18,22 +18,23 @@ export const calculatePath = (
     };
   }
 
-  const sourceRadius = (source.radius || 30) + 8; // Extra 8px padding
-  const targetRadius = (target.radius || 30) + 20; // Extra 20px padding for arrow placement
-
+  const sourceRadius = (source.radius || 30) + 5; // Less padding for source to prevent gap
+  const targetRadius = (target.radius || 30) + 3; // Adjusted padding for precise arrow alignment
+  
   // Calculate the angle between source and target
   const dx = target.x - source.x;
   const dy = target.y - source.y;
   const angle = Math.atan2(dy, dx);
-
+  
   // Calculate the distance between the nodes
   const distance = Math.sqrt(dx * dx + dy * dy);
-
+  
   // Calculate where the line should start (outside source node)
   const startX = source.x + Math.cos(angle) * sourceRadius;
   const startY = source.y + Math.sin(angle) * sourceRadius;
-
-  // Calculate where the line should end (outside target node)
+  
+  // Calculate where the line should end (exactly at target node edge)
+  // The arrow marker will be positioned at this point and extend outward
   const endX = target.x - Math.cos(angle) * targetRadius;
   const endY = target.y - Math.sin(angle) * targetRadius;
 
@@ -77,58 +78,5 @@ export const calculatePath = (
       path: `M${startX},${startY} L${endX},${endY}`,
       arrowPosition: { x: endX, y: endY, angle: angle },
     };
-  }
-};
-
-/**
- * Creates an arrow element for a link to represent the direction.
- * @param linkGroup The D3 selection for the link group
- * @param pathData The path calculation data
- * @param arrowColor The color of the arrow
- * @param linkId Optional unique identifier for the link to create stable arrow elements
- * @returns The created arrow element
- */
-export const createArrowElement = (
-  linkGroup: d3.Selection<SVGGElement, unknown, null, undefined>,
-  pathData: PathCalculationResult,
-  arrowColor: string,
-  linkId?: string
-) => {
-  // Create a unique class for this arrow if linkId is provided
-  const arrowClass = linkId ? `arrow-${linkId}` : "arrow";
-
-  try {
-    // Validate position data to avoid NaN errors
-    if (
-      isNaN(pathData.arrowPosition.x) ||
-      isNaN(pathData.arrowPosition.y) ||
-      isNaN(pathData.arrowPosition.angle)
-    ) {
-      console.warn("Invalid arrow position data", pathData);
-      return linkGroup; // Return without creating arrow
-    }
-
-    // First remove any existing arrow with this ID to prevent duplicates
-    linkGroup.selectAll(`.${arrowClass}`).remove();
-
-    // Create the new arrow with more robust attributes
-    return linkGroup
-      .append("path")
-      .attr("class", arrowClass)
-      .attr("d", "M-10,-6 L 0,0 L -10,6 L -2,0 Z") // Improved arrow shape
-      .attr("fill", arrowColor)
-      .attr("stroke", arrowColor)
-      .attr("stroke-width", 1.5) // Slightly thicker stroke
-      .attr("stroke-linejoin", "round")
-      .attr(
-        "transform",
-        `translate(${pathData.arrowPosition.x},${pathData.arrowPosition.y}) ` +
-          `rotate(${(pathData.arrowPosition.angle * 180) / Math.PI})`
-      )
-      .style("pointer-events", "none"); // Make arrows non-interactive to avoid hover issues
-  } catch (error) {
-    console.error("Error creating arrow element:", error);
-    // Return a dummy selection to avoid errors downstream
-    return linkGroup;
   }
 };

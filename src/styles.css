@@ -143,7 +143,9 @@ select.form-control {
   stroke: #555; /* Darker color for better visibility */
   stroke-width: 2.5px;
   stroke-linecap: round;
+  stroke-linejoin: round;
   transition: all 0.2s;
+  pointer-events: stroke; /* Improve interaction area of the link */
 }
 
 .data-relationship-graph .links path:hover {
@@ -151,9 +153,31 @@ select.form-control {
   stroke: #3367d6;
 }
 
+/* Make sure markers have the same hover effect as their parent lines */
+.data-relationship-graph .links path:hover {
+  marker-end: url(#arrow-default); /* Ensure marker stays attached during hover */
+}
+
+/* Define marker styles globally */
+marker#arrow-default path,
+marker#arrow-dependency path,
+marker#arrow-user path {
+  transition: fill 0.2s;
+  stroke: none; /* Ensure no stroke to avoid double edges */
+}
+
+marker#arrow-default,
+marker#arrow-dependency,
+marker#arrow-user {
+  overflow: visible;
+  pointer-events: none; /* Prevent markers from capturing events */
+}
+
 .data-relationship-graph .relationship-link {
   cursor: pointer;
   transition: all 0.2s ease;
+  pointer-events: stroke; /* Better interaction for thin lines */
+  shape-rendering: geometricPrecision; /* Improves line rendering quality */
 }
 
 .data-relationship-graph .nodes text {

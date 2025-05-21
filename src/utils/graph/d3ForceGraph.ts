@@ -11,7 +11,7 @@ import {
   getDirectUsers,
 } from "./graphCalculations";
 import { createForceSimulation } from "./forceSimulation";
-import { calculatePath, createArrowElement } from "./pathCalculations";
+import { calculatePath } from "./pathCalculations";
 
 /**
  * Creates and renders a D3 force-directed graph visualization for data assets.
@@ -41,10 +41,43 @@ export const createD3ForceGraph = (
   // Create SVG elements using D3
   const svg = d3.select(svgElement);
 
+  // Helper function to create node-radius-aware markers
+  // This helps position arrows correctly regardless of node size
+  const createMarkers = () => {
+    const defs = svg.append("defs");
+
+    // Create a marker for each type with node radius awareness
+    ["default", "dependency", "user"].forEach(type => {
+      const marker = defs.append("marker")
+        .attr("id", `arrow-${type}`)
+        .attr("viewBox", "0 -6 12 12")
+        .attr("refX", 7) // Optimized for precise positioning at node edge
+        .attr("refY", 0)
+        .attr("markerWidth", 10) // Slightly smaller for better proportions
+        .attr("markerHeight", 10)
+        .attr("orient", "auto")
+        .attr("markerUnits", "userSpaceOnUse") // Better for consistent sizing
+        .style("overflow", "visible");
+
+      marker.append("path")
+        .attr("d", "M0,-5 L8,0 L0,5 L2,0 Z") // Adjusted path for cleaner appearance
+        .attr("fill", () => {
+          switch (type) {
+            case "dependency": return "#34a853"; // Dependency arrow - green
+            case "user": return "#fbbc05"; // User arrow - amber
+            default: return "#3367d6"; // Default - blue
+          }
+        });
+    });
+  };
+
+  // Create the markers
+  createMarkers();
+
   // First create a group for links so they appear behind nodes
   const linkGroup = svg.append("g").attr("class", "links");
 
-  // Use path elements instead of lines for better arrow positioning control
+  // Use path elements with built-in arrow markers
   const link = linkGroup
     .selectAll("path")
     .data(links)
@@ -53,6 +86,7 @@ export const createD3ForceGraph = (
     .attr("stroke", "#999")
     .attr("stroke-width", 2.5)
     .attr("fill", "none")
+    .attr("marker-end", "url(#arrow-default)")
     .attr("class", "relationship-link")
     .style("cursor", "pointer");
 
@@ -125,7 +159,7 @@ export const createD3ForceGraph = (
   }
 
   // Add click handlers for nodes
-  circles.on("click", function (event, d) {
+  circles.on("click", function (event: any, d: D3Node) {
     // Dispatch custom event with node id for filtering
     const clickEvent = new CustomEvent("nodeClick", {
       detail: { nodeId: d.id },
@@ -152,42 +186,13 @@ export const createD3ForceGraph = (
       return `translate(${d.x}, ${d.y})`;
     });
 
-    // Clear all arrows first to prevent accumulation
-    linkGroup.selectAll("path.arrow, path[class^='arrow-']").remove();
-
-    // Update each link path and its corresponding arrow together to ensure they're synchronized
-    link.each(function (d: any, i) {
+    // Update each link path with the calculated path
+    link.each(function (d: any) {
       const pathElement = d3.select(this);
       const pathData = calculatePath(d.source, d.target);
 
       // Update the path
       pathElement.attr("d", pathData.path);
-
-      // Determine arrow color based on relationship to selected node
-      let arrowColor = "#3367d6"; // Default blue
-
-      if (selectedNodeId) {
-        const sourceId = typeof d.source === "object" ? d.source.id : d.source;
-        const targetId = typeof d.target === "object" ? d.target.id : d.target;
-
-        if (sourceId === selectedNodeId) {
-          arrowColor = "#fbbc05"; // User relationship - amber
-        } else if (targetId === selectedNodeId) {
-          arrowColor = "#34a853"; // Dependency relationship - green
-        }
-      }
-
-      // Create arrow element with a unique ID to ensure proper tracking
-      const sourceId = typeof d.source === "object" ? d.source.id : d.source;
-      const targetId = typeof d.target === "object" ? d.target.id : d.target;
-      const linkId = `${sourceId}-${targetId}-${i}`; // Add index for extra uniqueness
-
-      try {
-        // Create arrow element with the link's unique ID
-        createArrowElement(linkGroup, pathData, arrowColor, linkId);
-      } catch (error) {
-        console.error("Error creating arrow during tick:", error);
-      }
     });
   });
 
@@ -217,7 +222,7 @@ const createNodeTooltips = (
 
     // Find assets that use this asset as a data source
     const usedBy = dataAssets.filter((a) =>
-      a.relationships?.some((rel) => rel.name === d.name)
+      a.relationships?.some((rel: any) => rel.name === d.name)
     );
 
     // Add "Used by" section if applicable
@@ -231,7 +236,7 @@ const createNodeTooltips = (
     // Add "Uses data from" section if applicable
     if (asset?.relationships && asset.relationships.length > 0) {
       tooltip += "\n\nUses data from:";
-      asset.relationships.forEach((rel) => {
+      asset.relationships.forEach((rel: any) => {
         tooltip += `\n- ${rel.name}`;
       });
     }
@@ -262,9 +267,9 @@ const applyNodeSelectionVisuals = (
   const directUsers = getDirectUsers(selectedNodeId, links);
 
   // Update node visuals based on relationship type
-  nodeGroup.style("opacity", (d) => (connectedNodes.has(d.id) ? 1 : 0.2));
+  nodeGroup.style("opacity", (d: D3Node) => (connectedNodes.has(d.id) ? 1 : 0.2));
   circles
-    .attr("fill", (d) => {
+    .attr("fill", (d: D3Node) => {
       if (d.id === selectedNodeId) {
         return "#ea4335"; // Selected node - red
       } else if (directDependencies.has(d.id)) {
@@ -276,7 +281,7 @@ const applyNodeSelectionVisuals = (
       }
       return "#4285f4"; // Default blue
     })
-    .attr("stroke", (d) => {
+    .attr("stroke", (d: D3Node) => {
       if (d.id === selectedNodeId) {
         return "#c50f0f"; // Darker red for selected node
       } else if (directDependencies.has(d.id)) {
@@ -286,7 +291,7 @@ const applyNodeSelectionVisuals = (
       }
       return "#3367d6"; // Default blue stroke
     })
-    .attr("stroke-width", (d) => {
+    .attr("stroke-width", (d: D3Node) => {
       // Highlight selected, direct dependencies and users with thicker stroke
       if (
         d.id === selectedNodeId ||
@@ -300,7 +305,7 @@ const applyNodeSelectionVisuals = (
 
   // Update link visuals
   link
-    .style("opacity", (d) => {
+    .style("opacity", (d: D3Link) => {
       const sourceId = typeof d.source === "object" ? d.source.id : d.source;
       const targetId = typeof d.target === "object" ? d.target.id : d.target;
 
@@ -314,7 +319,7 @@ const applyNodeSelectionVisuals = (
         ? 0.7
         : 0.1;
     })
-    .attr("stroke", (d) => {
+    .attr("stroke", (d: D3Link) => {
       const sourceId = typeof d.source === "object" ? d.source.id : d.source;
       const targetId = typeof d.target === "object" ? d.target.id : d.target;
 
@@ -327,7 +332,20 @@ const applyNodeSelectionVisuals = (
 
       return "#999"; // Default gray
     })
-    .attr("stroke-width", (d) => {
+    .attr("marker-end", (d: D3Link) => {
+      const sourceId = typeof d.source === "object" ? d.source.id : d.source;
+      const targetId = typeof d.target === "object" ? d.target.id : d.target;
+
+      // Use appropriate marker based on relationship
+      if (sourceId === selectedNodeId) {
+        return "url(#arrow-user)"; // User relationship
+      } else if (targetId === selectedNodeId) {
+        return "url(#arrow-dependency)"; // Dependency relationship
+      }
+
+      return "url(#arrow-default)"; // Default relationship
+    })
+    .attr("stroke-width", (d: D3Link) => {
       const sourceId = typeof d.source === "object" ? d.source.id : d.source;
       const targetId = typeof d.target === "object" ? d.target.id : d.target;
 
@@ -366,27 +384,43 @@ const applySearchMatchVisuals = (
   );
 
   // Update node visuals based on search matches and connections
-  nodeGroup.style("opacity", (d) => (connectedNodes.has(d.id) ? 1 : 0.2));
-  circles.attr("fill", (d) =>
+  nodeGroup.style("opacity", (d: D3Node) => (connectedNodes.has(d.id) ? 1 : 0.2));
+  circles.attr("fill", (d: D3Node) =>
     searchMatches.includes(d.id) ? "#ea4335" : "#4285f4"
   );
 
   // Highlight text for search matches
   labels
-    .attr("fill", (d) => (searchMatches.includes(d.id) ? "#ffff00" : "white"))
-    .attr("font-weight", (d) =>
+    .attr("fill", (d: D3Node) => (searchMatches.includes(d.id) ? "#ffff00" : "white"))
+    .attr("font-weight", (d: D3Node) =>
       searchMatches.includes(d.id) ? "bold" : "normal"
     );
 
   // Update link visuals
-  link.style("opacity", (d) => {
-    const sourceId = typeof d.source === "object" ? d.source.id : d.source;
-    const targetId = typeof d.target === "object" ? d.target.id : d.target;
-    return connectedNodes.has(sourceId as string) &&
-      connectedNodes.has(targetId as string)
-      ? 1
-      : 0.1;
-  });
+  link
+    .style("opacity", (d: D3Link) => {
+      const sourceId = typeof d.source === "object" ? d.source.id : d.source;
+      const targetId = typeof d.target === "object" ? d.target.id : d.target;
+      return connectedNodes.has(sourceId as string) &&
+        connectedNodes.has(targetId as string)
+        ? 1
+        : 0.1;
+    })
+    .attr("marker-end", (d: D3Link) => {
+      const sourceId = typeof d.source === "object" ? d.source.id : d.source;
+      const targetId = typeof d.target === "object" ? d.target.id : d.target;
+
+      const sourceMatches = searchMatches.includes(sourceId as string);
+      const targetMatches = searchMatches.includes(targetId as string);
+
+      if (sourceMatches && targetMatches) {
+        return "url(#arrow-dependency)"; // Highlight with green arrow when both match
+      } else if (sourceMatches || targetMatches) {
+        return "url(#arrow-user)"; // Highlight with amber arrow when one matches
+      }
+
+      return "url(#arrow-default)"; // Default arrow
+    });
 };
 
 /**
@@ -434,14 +468,22 @@ const dragging = (
   // Update the node position
   d.fx = event.x;
   d.fy = event.y;
-
-  // Force simulation to recalculate positions immediately
-  // This ensures arrows update correctly during dragging
-  simulation.alpha(0.3).tick();
-
-  // Request an animation frame for smoother updates
+  
+  // Force simulation to recalculate positions immediately with higher alpha
+  // Higher alpha value makes the movement more responsive during dragging
+  simulation.alpha(0.7); // Increased from 0.5 for more responsive movement
+  
+  // Run multiple ticks to ensure smooth updates of all connected elements
+  for (let i = 0; i < 3; i++) { // Increased from 2 to 3 ticks per frame
+    simulation.tick();
+  }
+  
+  // Force an immediate rerender to ensure arrows stay connected to lines
+  simulation.tick();
+  
+  // Request animation frame for smoother rendering during continuous movement
   requestAnimationFrame(() => {
-    // Force an additional tick to ensure arrows update
+    // Additional tick in the animation frame for smoother visuals
     simulation.tick();
   });
 };
@@ -485,6 +527,5 @@ const dragEnded = (
   }
 };
 
-// Explicitly export an empty object to make this file a module
-// This fixes the TS1208 error: "cannot be compiled under '--isolatedModules' because it is considered a global script file"
+// This export is needed to make this file a proper module
 export {};
