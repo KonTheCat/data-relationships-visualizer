@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from "react";
 import { DataAsset } from "../models/DataAsset";
-import { createD3ForceGraph } from "../utils/visualizationHelpers";
+import { createD3ForceGraph } from "../utils";
 
 interface RelationshipVisualizerProps {
   dataAssets: DataAsset[];
@@ -125,12 +125,46 @@ const RelationshipVisualizer: React.FC<RelationshipVisualizerProps> = ({
           </button>
         )}
       </div>
-      <p className="relationship-legend">
-        <strong>Note:</strong> In the visualization,
-        <span className="arrow-description">
-          arrows point toward the data assets that use data from other assets
-        </span>
-      </p>
+      <div className="relationship-legend-container">
+        <p className="relationship-legend">
+          <strong>Note:</strong> In the visualization,
+          <span className="arrow-description">
+            arrows point toward the data assets that use data from other assets
+          </span>
+        </p>
+        {selectedNodeId && (
+          <div className="relationship-color-legend">
+            <div className="legend-item">
+              <span
+                className="legend-color"
+                style={{ backgroundColor: "#ea4335" }}
+              ></span>
+              <span className="legend-label">Selected Asset</span>
+            </div>
+            <div className="legend-item">
+              <span
+                className="legend-color"
+                style={{ backgroundColor: "#34a853" }}
+              ></span>
+              <span className="legend-label">Provides Data To Selected</span>
+            </div>
+            <div className="legend-item">
+              <span
+                className="legend-color"
+                style={{ backgroundColor: "#fbbc05" }}
+              ></span>
+              <span className="legend-label">Uses Data From Selected</span>
+            </div>
+            <div className="legend-item">
+              <span
+                className="legend-color"
+                style={{ backgroundColor: "#4285f4" }}
+              ></span>
+              <span className="legend-label">Indirectly Connected</span>
+            </div>
+          </div>
+        )}
+      </div>
       {selectedNodeId && (
         <div className="filtering-info">
           <p>

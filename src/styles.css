@@ -138,7 +138,7 @@ select.form-control {
   fill: #ea4335;
 }
 
-.data-relationship-graph .links line {
+.data-relationship-graph .links path {
   stroke-opacity: 1; /* Full opacity for better visibility */
   stroke: #555; /* Darker color for better visibility */
   stroke-width: 2.5px;
@@ -146,9 +146,14 @@ select.form-control {
   transition: all 0.2s;
 }
 
-.data-relationship-graph .links line:hover {
+.data-relationship-graph .links path:hover {
   stroke-width: 5px;
   stroke: #3367d6;
+}
+
+.data-relationship-graph .relationship-link {
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .data-relationship-graph .nodes text {
@@ -179,12 +184,45 @@ select.form-control {
   color: #3367d6;
 }
 
-.relationship-legend {
+.relationship-legend-container {
   margin-bottom: 15px;
+}
+
+.relationship-legend {
+  margin-bottom: 10px;
   padding: 10px;
   background-color: #f8f8f8;
   border-left: 3px solid #3367d6;
   font-size: 14px;
+}
+
+.relationship-color-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  padding: 10px;
+  background-color: #f8f8f8;
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  margin-right: 15px;
+}
+
+.legend-color {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  margin-right: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+.legend-label {
+  font-size: 13px;
 }
 
 .arrow-description {

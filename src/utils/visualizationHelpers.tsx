@@ -1,57 +1,55 @@
-import React from "react";
-import { DataAsset } from "../models/DataAsset";
 import * as d3 from "d3";
+import { DataAsset } from "../models/DataAsset";
+import { D3Node, D3Link, RelationshipType } from "./types/graphTypes";
 
-export const formatDataAsset = (dataAsset: {
-  name: string;
-  description: string;
-  relationships?: DataAsset[];
-}) => {
-  return {
-    title: dataAsset.name,
-    content: dataAsset.description,
-    relatedAssets: dataAsset.relationships || [],
-  };
-};
+// Note: The main functionality of this file has been extracted to separate modules.
+// This file is now only kept for backward compatibility.
+// Please use the modular imports from the utils directory instead.
 
-export const calculateRelationships = (dataAssets: DataAsset[]) => {
-  const relationshipMap: Record<string, DataAsset[]> = {};
+// The implementation below is no longer in use and will be removed in a future version.
+// It's currently here only for reference and backward compatibility.
 
-  dataAssets.forEach((asset) => {
-    relationshipMap[asset.name] = asset.relationships || [];
+// Helper function to identify relationship types with the selected node
+const getNodeRelationshipType = (
+  nodeId: string,
+  selectedNodeId: string,
+  links: D3Link[]
+): RelationshipType => {
+  if (nodeId === selectedNodeId) {
+    return "selected";
+  }
+
+  // Check if this node is a direct dependency (selected node uses this node's data)
+  const isDirectDependency = links.some((link) => {
+    const sourceId =
+      typeof link.source === "object" ? link.source.id : link.source;
+    const targetId =
+      typeof link.target === "object" ? link.target.id : link.target;
+    return sourceId === nodeId && targetId === selectedNodeId;
   });
 
-  return relationshipMap;
+  if (isDirectDependency) {
+    return "directDependency";
+  }
+
+  // Check if this node is a direct user (this node uses selected node's data)
+  const isDirectUser = links.some((link) => {
+    const sourceId =
+      typeof link.source === "object" ? link.source.id : link.source;
+    const targetId =
+      typeof link.target === "object" ? link.target.id : link.target;
+    return sourceId === selectedNodeId && targetId === nodeId;
+  });
+
+  if (isDirectUser) {
+    return "directUser";
+  }
+
+  return "indirectlyRelated";
 };
-
-// This function is kept for backward compatibility, but isn't used for visualization anymore
-export const visualizeRelationships = (
-  dataAssets: DataAsset[]
-): JSX.Element[] => {
-  return dataAssets.map((asset) => (
-    <div key={asset.name}>
-      <strong>{asset.name}</strong> is related to:{" "}
-      {asset.relationships && asset.relationships.length > 0
-        ? asset.relationships.map((rel) => rel.name).join(", ")
-        : "None"}
-    </div>
-  ));
-};
-
-interface D3Node extends d3.SimulationNodeDatum {
-  id: string;
-  name: string;
-  description: string;
-  radius: number;
-}
-
-interface D3Link extends d3.SimulationLinkDatum<D3Node> {
-  source: D3Node | string | number;
-  target: D3Node | string | number;
-}
 
 // Modified function with filtering capability for both node selection and search
-export const createD3ForceGraph = (
+const createD3ForceGraph = (
   svgElement: SVGSVGElement,
   dataAssets: DataAsset[],
   dimensions: { width: number; height: number },
@@ -192,9 +190,9 @@ export const createD3ForceGraph = (
       d3
         .forceLink<D3Node, D3Link>(links)
         .id((d: any) => d.id)
-        .distance(180) // Increased distance to reduce overlap
+        .distance(200) // Further increased distance to reduce overlap
     )
-    .force("charge", d3.forceManyBody().strength(-600)) // Increased repulsion force
+    .force("charge", d3.forceManyBody().strength(-800)) // Further increased repulsion force
     .force(
       "center",
       d3.forceCenter(dimensions.width / 2, dimensions.height / 2)
@@ -203,8 +201,8 @@ export const createD3ForceGraph = (
       "collide",
       d3
         .forceCollide()
-        .radius((d) => (d as D3Node).radius + 25)
-        .strength(0.8) // Increased padding and strength
+        .radius((d) => (d as D3Node).radius + 35) // Further increased padding to prevent overlap
+        .strength(1.0) // Maximum strength for collision prevention
     )
     // Add horizontal positioning force based on node depth
     .force(
@@ -216,12 +214,92 @@ export const createD3ForceGraph = (
           const nodeId = (d as D3Node).id;
           const depth = nodeDepths.get(nodeId) || 0;
           const step = dimensions.width / (maxDepth + 2);
-          return (depth + 0.5) * step; // position nodes based on their depth
+
+          // Add a small offset based on node id hash to avoid exact vertical alignment
+          const idHash = nodeId
+            .split("")
+            .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+          const jitter = (idHash % 80) - 40; // +/- 40px jitter
+
+          return (depth + 0.5) * step + jitter; // position nodes based on their depth with slight horizontal jitter
         })
-        .strength(0.4) // Slightly stronger to maintain horizontal layout
+        .strength(0.35) // Slightly reduced strength to allow jitter
     )
     // Add a vertical force to spread nodes within their depth level
     .force("y", d3.forceY(dimensions.height / 2).strength(0.1));
+  // Add a custom force to prevent nodes from overlapping with links
+  // This creates repulsion between nodes and links to avoid line overlaps
+  simulation.force("link-node-repulsion", (alpha) => {
+    // Loop through each node
+    nodes.forEach((node) => {
+      // Check each link for potential overlaps with this node
+      links.forEach((link) => {
+        const sourceNode =
+          typeof link.source === "object"
+            ? link.source
+            : nodes.find((n) => n.id === link.source);
+        const targetNode =
+          typeof link.target === "object"
+            ? link.target
+            : nodes.find((n) => n.id === link.target);
+
+        if (
+          !sourceNode ||
+          !targetNode ||
+          sourceNode === node ||
+          targetNode === node
+        ) {
+          // Skip if this node is part of the link or nodes not found
+          return;
+        }
+
+        // Calculate if the node is near the link path
+        const x1 = sourceNode.x || 0;
+        const y1 = sourceNode.y || 0;
+        const x2 = targetNode.x || 0;
+        const y2 = targetNode.y || 0;
+        const x0 = node.x || 0;
+        const y0 = node.y || 0;
+
+        // Calculate the squared distance from point to line segment
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const l2 = dx * dx + dy * dy; // Length of line squared
+
+        if (l2 === 0) return; // Skip if line is a point
+
+        // Calculate projection of node position onto line
+        const t = Math.max(
+          0,
+          Math.min(1, ((x0 - x1) * dx + (y0 - y1) * dy) / l2)
+        );
+        const projX = x1 + t * dx;
+        const projY = y1 + t * dy;
+
+        // Calculate squared distance from node to projection point
+        const nodeRadius = node.radius + 15; // Additional safe zone
+        const distSq =
+          (x0 - projX) * (x0 - projX) + (y0 - projY) * (y0 - projY);
+
+        if (distSq < nodeRadius * nodeRadius) {
+          // If node is too close to the link path, push it away
+          const dist = Math.sqrt(distSq);
+          const repulsionStrength =
+            Math.min(5, (nodeRadius - dist) / nodeRadius) * alpha * 10;
+
+          // Vector from projection to node
+          const vx = (x0 - projX) / (dist || 1);
+          const vy = (y0 - projY) / (dist || 1);
+
+          // Apply force to node
+          if (node.vx !== undefined && node.vy !== undefined) {
+            node.vx += vx * repulsionStrength;
+            node.vy += vy * repulsionStrength;
+          }
+        }
+      });
+    });
+  });
 
   // Create SVG elements using D3
   const svg = d3.select(svgElement);
@@ -237,7 +315,16 @@ export const createD3ForceGraph = (
     .append("path")
     .attr("stroke", "#999")
     .attr("stroke-width", 2.5)
-    .attr("fill", "none");
+    .attr("fill", "none")
+    .attr("class", "relationship-link")
+    .style("cursor", "pointer");
+
+  // Add tooltips to links showing relationship direction
+  link.append("title").text((d: D3Link) => {
+    const sourceId = typeof d.source === "object" ? d.source.id : d.source;
+    const targetId = typeof d.target === "object" ? d.target.id : d.target;
+    return `${sourceId} → ${targetId}\nData flows from "${sourceId}" to "${targetId}"`;
+  });
 
   // Create a group for nodes that will be rendered above links
   const nodeGroup = svg
@@ -271,7 +358,7 @@ export const createD3ForceGraph = (
 
     // Find assets that use this asset as a data source
     const usedBy = dataAssets.filter((a) =>
-      a.relationships?.some((rel) => rel.name === d.name)
+      a.relationships?.some((rel: DataAsset) => rel.name === d.name)
     );
 
     // Add "Used by" section if applicable
@@ -285,7 +372,7 @@ export const createD3ForceGraph = (
     // Add "Uses data from" section if applicable
     if (asset?.relationships && asset.relationships.length > 0) {
       tooltip += "\n\nUses data from:";
-      asset.relationships.forEach((rel) => {
+      asset.relationships.forEach((rel: DataAsset) => {
         tooltip += `\n- ${rel.name}`;
       });
     }
@@ -410,21 +497,107 @@ export const createD3ForceGraph = (
   if (selectedNodeId) {
     const connectedNodes = findConnectedNodes(selectedNodeId);
 
-    // Update node visuals based on connection status
+    // Get direct dependencies (assets that the selected node uses)
+    const directDependencies = new Set<string>();
+    links.forEach((link) => {
+      const sourceId =
+        typeof link.source === "object" ? link.source.id : link.source;
+      const targetId =
+        typeof link.target === "object" ? link.target.id : link.target;
+      if (targetId === selectedNodeId) {
+        directDependencies.add(sourceId as string);
+      }
+    });
+
+    // Get direct users (assets that use the selected node)
+    const directUsers = new Set<string>();
+    links.forEach((link) => {
+      const sourceId =
+        typeof link.source === "object" ? link.source.id : link.source;
+      const targetId =
+        typeof link.target === "object" ? link.target.id : link.target;
+      if (sourceId === selectedNodeId) {
+        directUsers.add(targetId as string);
+      }
+    });
+
+    // Update node visuals based on relationship type
     nodeGroup.style("opacity", (d) => (connectedNodes.has(d.id) ? 1 : 0.2));
-    circles.attr("fill", (d) =>
-      d.id === selectedNodeId ? "#ea4335" : "#4285f4"
-    );
+    circles
+      .attr("fill", (d) => {
+        if (d.id === selectedNodeId) {
+          return "#ea4335"; // Selected node - red
+        } else if (directDependencies.has(d.id)) {
+          return "#34a853"; // Direct dependency - green
+        } else if (directUsers.has(d.id)) {
+          return "#fbbc05"; // Direct user - yellow/amber
+        } else if (connectedNodes.has(d.id)) {
+          return "#4285f4"; // Indirectly connected - blue
+        }
+        return "#4285f4"; // Default blue
+      })
+      .attr("stroke", (d) => {
+        if (d.id === selectedNodeId) {
+          return "#c50f0f"; // Darker red for selected node
+        } else if (directDependencies.has(d.id)) {
+          return "#0f783e"; // Darker green for dependencies
+        } else if (directUsers.has(d.id)) {
+          return "#d09700"; // Darker amber for users
+        }
+        return "#3367d6"; // Default blue stroke
+      })
+      .attr("stroke-width", (d) => {
+        // Highlight selected, direct dependencies and users with thicker stroke
+        if (
+          d.id === selectedNodeId ||
+          directDependencies.has(d.id) ||
+          directUsers.has(d.id)
+        ) {
+          return 3;
+        }
+        return 2;
+      });
 
     // Update link visuals
-    link.style("opacity", (d) => {
-      const sourceId = typeof d.source === "object" ? d.source.id : d.source;
-      const targetId = typeof d.target === "object" ? d.target.id : d.target;
-      return connectedNodes.has(sourceId as string) &&
-        connectedNodes.has(targetId as string)
-        ? 1
-        : 0.1;
-    });
+    link
+      .style("opacity", (d) => {
+        const sourceId = typeof d.source === "object" ? d.source.id : d.source;
+        const targetId = typeof d.target === "object" ? d.target.id : d.target;
+
+        // Highlight links directly connected to selected node
+        if (sourceId === selectedNodeId || targetId === selectedNodeId) {
+          return 1;
+        }
+
+        return connectedNodes.has(sourceId as string) &&
+          connectedNodes.has(targetId as string)
+          ? 0.7
+          : 0.1;
+      })
+      .attr("stroke", (d) => {
+        const sourceId = typeof d.source === "object" ? d.source.id : d.source;
+        const targetId = typeof d.target === "object" ? d.target.id : d.target;
+
+        // Color links based on their relationship to selected node
+        if (sourceId === selectedNodeId) {
+          return "#fbbc05"; // Link to users - amber
+        } else if (targetId === selectedNodeId) {
+          return "#34a853"; // Link from dependencies - green
+        }
+
+        return "#999"; // Default gray
+      })
+      .attr("stroke-width", (d) => {
+        const sourceId = typeof d.source === "object" ? d.source.id : d.source;
+        const targetId = typeof d.target === "object" ? d.target.id : d.target;
+
+        // Make direct links thicker
+        if (sourceId === selectedNodeId || targetId === selectedNodeId) {
+          return 3;
+        }
+
+        return 2.5;
+      });
   } else if (searchMatches && searchMatches.length > 0) {
     // If search is active, show matching nodes and their connections
     const connectedNodes = findConnectedNodesFromMultiple(searchMatches);
@@ -481,6 +654,9 @@ export const createD3ForceGraph = (
     const dy = target.y - source.y;
     const angle = Math.atan2(dy, dx);
 
+    // Calculate the distance between the nodes
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
     // Calculate where the line should start (outside source node)
     const startX = source.x + Math.cos(angle) * sourceRadius;
     const startY = source.y + Math.sin(angle) * sourceRadius;
@@ -489,42 +665,89 @@ export const createD3ForceGraph = (
     const endX = target.x - Math.cos(angle) * targetRadius;
     const endY = target.y - Math.sin(angle) * targetRadius;
 
-    // Calculate where arrow should be placed (slightly before line end)
-    const arrowX = endX; // Position arrow exactly at the end of the line
-    const arrowY = endY; // Position arrow exactly at the end of the line
+    // Determine if we should use curved paths based on node positioning
+    // More selective criteria for curved paths
+    const horizontallyClose = Math.abs(dx) < 100 && Math.abs(dx) > 20;
+    const sameVerticalLevel = Math.abs(dy) < 50;
+    const shortDistance = distance < 120;
 
-    return {
-      path: `M${startX},${startY} L${endX},${endY}`,
-      arrowPosition: { x: arrowX, y: arrowY, angle: angle },
-    };
-  }
+    // Use curved paths primarily for nodes at similar vertical positions
+    // but not for nodes that are directly above/below each other or far apart
+    const shouldCurve =
+      (horizontallyClose && sameVerticalLevel) ||
+      (Math.abs(dx) < Math.abs(dy) * 0.5 && !sameVerticalLevel);
 
-  // Update positions on each tick of the simulation
+    let path;
+    if (shouldCurve) {
+      // Calculate a curved path with control points perpendicular to the line
+      const curveMagnitude = Math.min(80, distance * 0.4); // Adjust curve based on distance
+
+      // Calculate perpendicular direction
+      const perpX = -Math.sin(angle);
+      const perpY = Math.cos(angle);
+
+      // Create a curved path using quadratic curve
+      path = `M${startX},${startY} Q${
+        (startX + endX) / 2 + perpX * curveMagnitude
+      },${(startY + endY) / 2 + perpY * curveMagnitude} ${endX},${endY}`;
+
+      // Recalculate the arrow angle based on the curve's ending tangent
+      const curveEndAngle = Math.atan2(
+        endY - ((startY + endY) / 2 + perpY * curveMagnitude),
+        endX - ((startX + endX) / 2 + perpX * curveMagnitude)
+      );
+
+      return {
+        path: path,
+        arrowPosition: { x: endX, y: endY, angle: curveEndAngle },
+      };
+    } else {
+      // Use straight line for nodes that are vertically distant
+      return {
+        path: `M${startX},${startY} L${endX},${endY}`,
+        arrowPosition: { x: endX, y: endY, angle: angle },
+      };
+    }
+  } // Update positions on each tick of the simulation
   simulation.on("tick", () => {
-    // Update links using paths without arrow markers
-    link.attr("d", (d: any) => {
-      return calculatePath(d.source, d.target).path;
-    });
-
-    // Remove any existing arrows before redrawing
+    // Remove any existing arrows before redrawing to prevent stale arrows
     linkGroup.selectAll(".arrow").remove();
 
-    // Create arrows at the correct positions with larger size
-    links.forEach((d: any) => {
-      const { arrowPosition } = calculatePath(d.source, d.target);
+    // Update each link path and its corresponding arrow together to ensure they're synchronized
+    link.each(function (d: any) {
+      const pathElement = d3.select(this);
+      const pathData = calculatePath(d.source, d.target);
 
-      // Create arrow element with larger size
-      linkGroup
+      // Update the path
+      pathElement.attr("d", pathData.path);
+
+      // Determine arrow color based on relationship to selected node
+      let arrowColor = "#3367d6"; // Default blue
+
+      if (selectedNodeId) {
+        const sourceId = typeof d.source === "object" ? d.source.id : d.source;
+        const targetId = typeof d.target === "object" ? d.target.id : d.target;
+
+        if (sourceId === selectedNodeId) {
+          arrowColor = "#fbbc05"; // User relationship - amber
+        } else if (targetId === selectedNodeId) {
+          arrowColor = "#34a853"; // Dependency relationship - green
+        }
+      }
+
+      // Create arrow element with improved styling and positioning
+      const arrow = linkGroup
         .append("path")
         .attr("class", "arrow")
-        .attr("d", "M-10,-8 L 0,0 L -10,8") // Larger arrow shape
-        .attr("fill", "#3367d6")
-        .attr("stroke", "#3367d6") // Add stroke to make it more visible
+        .attr("d", "M-12,-8 L 0,0 L -12,8 L -4,0 Z") // More robust arrow shape with closed path
+        .attr("fill", arrowColor)
+        .attr("stroke", arrowColor) // Add stroke to make it more visible
         .attr("stroke-width", 1)
+        .attr("stroke-linejoin", "round") // Rounded corners for better appearance
         .attr(
           "transform",
-          `translate(${arrowPosition.x},${arrowPosition.y}) ` +
-            `rotate(${(arrowPosition.angle * 180) / Math.PI})`
+          `translate(${pathData.arrowPosition.x},${pathData.arrowPosition.y}) ` +
+            `rotate(${(pathData.arrowPosition.angle * 180) / Math.PI})`
         );
     });
 
@@ -537,10 +760,10 @@ export const createD3ForceGraph = (
     });
   });
 
-  // Run simulation for a few iterations to establish initial positions
+  // Run simulation for more iterations to establish better initial positions
   // This helps prevent initial overlaps
   simulation.alpha(1).restart();
-  for (let i = 0; i < 20; ++i) simulation.tick();
+  for (let i = 0; i < 100; ++i) simulation.tick(); // Increased iterations for better layout
 
   // Drag functions
   function dragStarted(
@@ -570,5 +793,5 @@ export const createD3ForceGraph = (
   }
 };
 
-// Legacy function name to maintain backward compatibility
-export const createForceGraphVisualization = createD3ForceGraph;
+// The functionality exported from this file is now available through the utils index
+// No exports needed from this file anymore, as it's just a legacy reference
