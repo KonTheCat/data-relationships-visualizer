@@ -9,9 +9,18 @@ const useDataAssets = () => {
     setDataAssets((prevAssets) => [...prevAssets, newAsset]);
   };
 
+  const updateDataAsset = (updatedAsset: DataAsset) => {
+    setDataAssets((prevAssets) =>
+      prevAssets.map((asset) =>
+        asset.name === updatedAsset.name ? updatedAsset : asset
+      )
+    );
+  };
+
   return {
     dataAssets,
     addDataAsset,
+    updateDataAsset,
   };
 };
 
