@@ -47,8 +47,9 @@ export const createD3ForceGraph = (
     const defs = svg.append("defs");
 
     // Create a marker for each type with node radius awareness
-    ["default", "dependency", "user"].forEach(type => {
-      const marker = defs.append("marker")
+    ["default", "dependency", "user"].forEach((type) => {
+      const marker = defs
+        .append("marker")
         .attr("id", `arrow-${type}`)
         .attr("viewBox", "0 -6 12 12")
         .attr("refX", 7) // Optimized for precise positioning at node edge
@@ -59,13 +60,17 @@ export const createD3ForceGraph = (
         .attr("markerUnits", "userSpaceOnUse") // Better for consistent sizing
         .style("overflow", "visible");
 
-      marker.append("path")
+      marker
+        .append("path")
         .attr("d", "M0,-5 L8,0 L0,5 L2,0 Z") // Adjusted path for cleaner appearance
         .attr("fill", () => {
           switch (type) {
-            case "dependency": return "#34a853"; // Dependency arrow - green
-            case "user": return "#fbbc05"; // User arrow - amber
-            default: return "#3367d6"; // Default - blue
+            case "dependency":
+              return "#34a853"; // Dependency arrow - green
+            case "user":
+              return "#fbbc05"; // User arrow - amber
+            default:
+              return "#3367d6"; // Default - blue
           }
         });
     });
@@ -267,7 +272,9 @@ const applyNodeSelectionVisuals = (
   const directUsers = getDirectUsers(selectedNodeId, links);
 
   // Update node visuals based on relationship type
-  nodeGroup.style("opacity", (d: D3Node) => (connectedNodes.has(d.id) ? 1 : 0.2));
+  nodeGroup.style("opacity", (d: D3Node) =>
+    connectedNodes.has(d.id) ? 1 : 0.2
+  );
   circles
     .attr("fill", (d: D3Node) => {
       if (d.id === selectedNodeId) {
@@ -384,14 +391,18 @@ const applySearchMatchVisuals = (
   );
 
   // Update node visuals based on search matches and connections
-  nodeGroup.style("opacity", (d: D3Node) => (connectedNodes.has(d.id) ? 1 : 0.2));
+  nodeGroup.style("opacity", (d: D3Node) =>
+    connectedNodes.has(d.id) ? 1 : 0.2
+  );
   circles.attr("fill", (d: D3Node) =>
     searchMatches.includes(d.id) ? "#ea4335" : "#4285f4"
   );
 
   // Highlight text for search matches
   labels
-    .attr("fill", (d: D3Node) => (searchMatches.includes(d.id) ? "#ffff00" : "white"))
+    .attr("fill", (d: D3Node) =>
+      searchMatches.includes(d.id) ? "#ffff00" : "white"
+    )
     .attr("font-weight", (d: D3Node) =>
       searchMatches.includes(d.id) ? "bold" : "normal"
     );
@@ -468,19 +479,20 @@ const dragging = (
   // Update the node position
   d.fx = event.x;
   d.fy = event.y;
-  
+
   // Force simulation to recalculate positions immediately with higher alpha
   // Higher alpha value makes the movement more responsive during dragging
   simulation.alpha(0.7); // Increased from 0.5 for more responsive movement
-  
+
   // Run multiple ticks to ensure smooth updates of all connected elements
-  for (let i = 0; i < 3; i++) { // Increased from 2 to 3 ticks per frame
+  for (let i = 0; i < 3; i++) {
+    // Increased from 2 to 3 ticks per frame
     simulation.tick();
   }
-  
+
   // Force an immediate rerender to ensure arrows stay connected to lines
   simulation.tick();
-  
+
   // Request animation frame for smoother rendering during continuous movement
   requestAnimationFrame(() => {
     // Additional tick in the animation frame for smoother visuals

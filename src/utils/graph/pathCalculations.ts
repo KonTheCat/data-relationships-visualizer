@@ -20,19 +20,19 @@ export const calculatePath = (
 
   const sourceRadius = (source.radius || 30) + 5; // Less padding for source to prevent gap
   const targetRadius = (target.radius || 30) + 3; // Adjusted padding for precise arrow alignment
-  
+
   // Calculate the angle between source and target
   const dx = target.x - source.x;
   const dy = target.y - source.y;
   const angle = Math.atan2(dy, dx);
-  
+
   // Calculate the distance between the nodes
   const distance = Math.sqrt(dx * dx + dy * dy);
-  
+
   // Calculate where the line should start (outside source node)
   const startX = source.x + Math.cos(angle) * sourceRadius;
   const startY = source.y + Math.sin(angle) * sourceRadius;
-  
+
   // Calculate where the line should end (exactly at target node edge)
   // The arrow marker will be positioned at this point and extend outward
   const endX = target.x - Math.cos(angle) * targetRadius;
